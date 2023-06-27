@@ -3,97 +3,100 @@ version: "3"
 services:
     loki:
         image: grafana/loki
-        ports:
-            - "3100:3100"
-            - "9096:9096"
-            - "9093:9093"
-        volumes:
-            # directory must be created first, with uid:gid 10001:10001
-            - /opt/docker-home/grafana-loki-prometheus/loki:/loki
-            - /opt/docker-home/grafana-loki-prometheus/loki/etc:/etc
+        container_name: loki
         command: -config.file=/etc/loki/local-config.yaml
+        volumes:
+            # Config
+            - ./config/loki:/etc/loki
+            # Persistent data
+            - loki_storage:/loki
         networks:
             - grafana-loki
             - promtail-loki
             - world
-        restart: always
-
 
     promtail:
         depends_on:
             - loki
         image: grafana/promtail
+        container_name: promtail
         ports:
             - "9080:9080"
-            - "1514:1514"
         volumes:
-            # custom config will read logs from the containers of
-            # this project
-            - /opt/docker-home/grafana-loki-prometheus/loki/promtail/:/etc/promtail/
+            # Config
+            - ./config/promtail:/etc/promtail
+            # Read-only access to docker
             # to read container labels and logs
-            - /var/run/docker.sock:/var/run/docker.sock
-            - /var/lib/docker/containers:/var/lib/docker/containers
-            - /var/log:/var/log
-        command: -config.file=/etc/promtail/config.yaml
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - /var/lib/docker/containers:/var/lib/docker/containers:ro
+            - /var/log:/var/log:ro
+        command: -config.file=/etc/promtail/docker-config.yaml
         networks:
             - promtail-loki
             - world
-        restart: always
-
-
-
 
     cadvisor:
         image: gcr.io/cadvisor/cadvisor
+        container_name: cadvisor
+        ports:
+            - "8080:8080"
         volumes:
+            # Read-only access to the host logs
             - /:/rootfs:ro
             - /var/run:/var/run:ro
             - /sys:/sys:ro
             - /var/lib/docker/:/var/lib/docker:ro
             - /dev/disk/:/dev/disk:ro
         networks:
+            - world
             - prometheus-cadvisor
 
     prometheus:
         image: prom/prometheus
+        container_name: prometheus
         ports:
             - "9090:9090"
         volumes:
-            - /opt/docker-home/grafana-loki-prometheus/prometheus:/app.cfg
+            # Config
+            - ./config/prometheus:/config
+            - prometheus_storage:/prometheus
         networks:
+            # Prometheus scrapes, so this is just for going out of the docker network
+            # Dont open prometheus port for incoming connections
             - world
             - prometheus-cadvisor
             - grafana-prometheus
         command: >-
-            --config.file=/app.cfg/prometheus.yml
+            --config.file=/config/prometheus.yml
             --storage.tsdb.path=/prometheus
             --web.console.libraries=/usr/share/prometheus/console_libraries
             --web.console.templates=/usr/share/prometheus/consoles
-        restart: always
-
 
     grafana:
-        depends_on:
-            - loki
         image: grafana/grafana
+        container_name: grafana
         ports:
             - "3000:3000"
         environment:
+            GF_PATHS_PROVISIONING: '/app.cfg/provisioning'
+            # This is just used for the initial setup
+            # Make sure to delete the initial user after the first login
             GF_SECURITY_ADMIN_USER: admin
             GF_SECURITY_ADMIN_PASSWORD: test
-            GF_PATHS_PROVISIONING: '/app.cfg/provisioning'
         volumes:
-            # directory must be created first, with uid:gid 472:472
-            - /opt/docker-home/grafana-loki-prometheus/grafana/lib:/var/lib/grafana
-            # automatically configure the loki datasource
-            - /opt/docker-home/grafana-loki-prometheus/grafana/etc:/etc/grafana
-            # - /opt/docker-home/grafana-loki-prometheus/grafana:/app.cfg
+            # Config
+            - ./config/grafana:/app.cfg
+            # Persistent data
+            - grafana_storage:/var/lib/grafana
         networks:
             - world
             - grafana-loki
             - grafana-prometheus
-        restart: always
-      
+
+volumes:
+    grafana_storage:
+    prometheus_storage:
+    loki_storage:
 
 networks:
     world:
