@@ -69,7 +69,6 @@ services:
             - grafana_storage:/var/lib/grafana
         networks:
             - nginx_network
-            - grafana-loki
             - grafana-prometheus
         restart: unless-stopped
 
