@@ -14,38 +14,6 @@ services:
             - nginx_network
             - world
 
-    loki:
-        image: grafana/loki
-        container_name: loki
-        command: -config.file=/etc/loki/local-config.yaml
-        volumes:
-            # Persistent data
-            - loki_storage:/loki
-        networks:
-            - grafana-loki
-            - promtail-loki
-            - world
-
-    promtail:
-        depends_on:
-            - loki
-        image: grafana/promtail
-        container_name: promtail
-        ports:
-            - "9080:9080"
-        volumes:
-            # Config
-            - ./config/promtail:/etc/promtail
-            # Read-only access to docker
-            # to read container labels and logs
-            - /var/run/docker.sock:/var/run/docker.sock:ro
-            - /var/lib/docker/containers:/var/lib/docker/containers:ro
-            - /var/log:/var/log:ro
-        command: -config.file=/etc/promtail/docker-config.yaml
-        networks:
-            - world
-            - promtail-loki
-
     cadvisor:
         image: gcr.io/cadvisor/cadvisor
         container_name: cadvisor
@@ -61,6 +29,7 @@ services:
         networks:
             - world
             - prometheus-cadvisor
+        restart: always
 
     prometheus:
         image: prom/prometheus
@@ -78,10 +47,8 @@ services:
             - prometheus-cadvisor
             - grafana-prometheus
         command: >-
-            --config.file=/config/prometheus.yml
-            --storage.tsdb.path=/prometheus
-            --web.console.libraries=/usr/share/prometheus/console_libraries
-            --web.console.templates=/usr/share/prometheus/consoles
+            --config.file=/config/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles
+        restart: always
 
     grafana:
         image: grafana/grafana
@@ -103,18 +70,16 @@ services:
             - nginx_network
             - grafana-loki
             - grafana-prometheus
+        restart: always
 
 volumes:
     grafana_storage:
     prometheus_storage:
-    loki_storage:
+
 
 networks:
     world:
-    promtail-loki:
-        internal: true
-    grafana-loki:
-        internal: true
+    nginx_network:
     grafana-prometheus:
         internal: true
     prometheus-cadvisor:
