@@ -5,8 +5,8 @@ services:
         image: nginx:latest
         container_name: reverse_proxy
         volumes:
-            # You need to create this folder and add the nginx.conf file
-            - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
+            # You need to create this folder
+            - ./config/nginx/:/etc/nginx/
         ports:
             - "80:80"
             - "443:443"
