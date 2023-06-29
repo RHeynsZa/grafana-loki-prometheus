@@ -6,8 +6,8 @@ Simple playground to try together combination of awesome tools: Grafana 6 + Loki
 
 ```bash
 # Start
-git clone https://github.com/scholy/grafana-loki-prometheus
-cd demo-grafana-loki-prometheus
+git clone git@bitbucket.org:utilidreamteam/grafana.git
+cd grafana
 docker-compose up
 
 # Stop
